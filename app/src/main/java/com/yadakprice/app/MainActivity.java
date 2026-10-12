@@ -42,7 +42,7 @@ public class MainActivity extends AppCompatActivity {
 
         WebViewAssetLoader assetLoader = new WebViewAssetLoader.Builder()
                 .setDomain(VIRTUAL_DOMAIN)
-                .addPathHandler("/", new WebViewAssetLoader.AssetsPathHandler(this))
+                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                 .build();
 
         WebSettings settings = webView.getSettings();
