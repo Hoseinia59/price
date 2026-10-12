@@ -1,1 +1,146 @@
+name: Build Yadak Price APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Locate Android SDK Manager
+        id: sdk
+        shell: bash
+        run: |
+          set -e
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: Android SDK Manager not found."
+            exit 1
+          fi
+          echo "sdkmanager=$SDKMANAGER" >> "$GITHUB_OUTPUT"
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        timeout-minutes: 3
+        run: |
+          set +e
+          timeout 150s bash -c 'yes | "$1" --licenses' _ "${{ steps.sdk.outputs.sdkmanager }}"
+          RESULT=$?
+          set -e
+          if [ "$RESULT" -eq 124 ]; then
+            echo "ERROR: License acceptance timed out."
+            exit 1
+          fi
+          if [ "$RESULT" -ne 0 ]; then
+            echo "ERROR: License acceptance failed."
+            exit 1
+          fi
+
+      - name: Install Android SDK packages
+        shell: bash
+        timeout-minutes: 10
+        run: |
+          set -e
+          SDKMANAGER="${{ steps.sdk.outputs.sdkmanager }}"
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Locate Android project
+        id: project
+        shell: bash
+        run: |
+          set -e
+          SETTINGS_FILE=$(find . -maxdepth 5 -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) -not -path '*/.gradle/*' | head -n 1)
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: settings.gradle not found."
+            find . -maxdepth 4 -type f | head -n 200
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          echo "dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Project directory: $PROJECT_DIR"
+
+      - name: Check Gradle project
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -e
+          if [ ! -f build.gradle ] && [ ! -f build.gradle.kts ]; then
+            echo "ERROR: Root build.gradle not found."
+            exit 1
+          fi
+          echo "Gradle project found."
+
+      - name: Find Android application module
+        id: app
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        run: |
+          set -e
+          APP_FILE=$(find . -maxdepth 5 -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -not -path '*/.gradle/*' | while read -r file; do
+            if grep -Eq 'com\.android\.application' "$file"; then
+              echo "$file"
+              break
+            fi
+          done)
+          if [ -z "$APP_FILE" ]; then
+            echo "ERROR: Android application module not found."
+            find . -maxdepth 5 -type f | head -n 200
+            exit 1
+          fi
+          APP_DIR=$(dirname "$APP_FILE")
+          if [ "$APP_DIR" = "." ]; then
+            MODULE="."
+          else
+            MODULE=$(echo "$APP_DIR" | sed 's#^\./##; s#/#:#g')
+          fi
+          echo "module=$MODULE" >> "$GITHUB_OUTPUT"
+          echo "Android module: $MODULE"
+
+      - name: Build Debug APK
+        working-directory: ${{ steps.project.outputs.dir }}
+        shell: bash
+        timeout-minutes: 20
+        run: |
+          set -e
+          MODULE="${{ steps.app.outputs.module }}"
+          if [ "$MODULE" = "." ]; then
+            gradle assembleDebug --no-daemon --stacktrace
+          else
+            gradle ":${MODULE}:assembleDebug" --no-daemon --stacktrace
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Yadak-Price-APK
+          path: "**/build/outputs/apk/debug/*.apk"
+          if-no-files-found: error
+          retention-days: 14
