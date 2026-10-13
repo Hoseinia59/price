@@ -808,31 +808,6 @@ $('importFile').onchange = async e => {
     await buildImportPreview(rows, file.name);
   } catch (err) { notify('خطا در ورود: ' + err.message); } finally { e.target.value = ''; }
 };
-$('pdfFile').onchange = async e => {
-  const file = e.target.files[0]; if (!file) return;
-  try {
-    if (!window.pdfjsLib) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const data = new Uint8Array(await file.arrayBuffer()), pdf = await pdfjsLib.getDocument({ data }).promise;
-    let text = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i), content = await page.getTextContent();
-      text += content.items.map(x => x.str).join(' ') + '\n';
-    }
-    if (!text.trim()) throw new Error('متنی استخراج نشد؛ احتمالاً PDF اسکن‌شده است و به OCR نیاز دارد (در این نسخه فعال نیست).');
-    const rows = [['نام کالا', 'قیمت']];
-    for (const line of text.split(/\n/)) {
-      const s = faNum(line), matches = [...s.matchAll(/\d[\d,٬، ]{2,}/g)].map(m => num(m[0])).filter(n => n >= 1000 && n < 1e10);
-      if (!matches.length) continue;
-      const price = Math.max(...matches);
-      const name = s.replace(/[\d][\d,٬، ]{2,}/g, ' ').replace(/\s+/g, ' ').trim();
-      if (name.length > 2 && name.length < 150) rows.push([name, price]);
-    }
-    if (rows.length < 2) throw new Error('از PDF ردیف قیمت قابل تشخیص پیدا نشد.');
-    notify('استخراج اولیه PDF با روش حدسی انجام شد؛ پیش از تأیید حتماً بررسی کن.');
-    await buildImportPreview(rows, file.name);
-  } catch (err) { notify('خطا در PDF: ' + err.message); } finally { e.target.value = ''; }
-};
 
 /* -------------------------------- رویدادهای عمومی رابط -------------------------------- */
 let searchDebounceTimer;
