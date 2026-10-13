@@ -1,9 +1,10 @@
 <!doctype html>
+
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111827">
+<meta name="theme-color" content="#2563eb">
 <meta name="description" content="موتور جست‌وجو و قیمت‌گذاری قطعات یدکی خودرو">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg">
@@ -18,9 +19,7 @@
     <p>جست‌وجوی هوشمند، قیمت‌گذاری و تاریخچه تغییرات قطعات یدکی</p>
   </div>
   <button id="installBtn" class="ghost hidden">نصب برنامه</button>
-</header>
-
-<main>
+</header><main>
   <section class="search-panel card">
     <div class="search-line">
       <input id="search" placeholder="نام قطعه، کد فنی، OEM، بارکد، برند یا خودرو را بنویس…" autocomplete="off">
@@ -44,28 +43,28 @@
       <label class="chk"><input id="filterHasCode" type="checkbox"> فقط دارای کد فنی</label>
       <button id="clearFilters" class="ghost small">پاک‌کردن فیلترها</button>
     </div>
-  </section>
-
-  <nav class="tabs">
+  </section>  <nav class="tabs">
     <button class="tab active" data-tab="products">کالاها</button>
     <button class="tab" data-tab="rules">قواعد سود</button>
     <button class="tab" data-tab="history">تاریخچه</button>
     <button class="tab" data-tab="tools">ورود و پشتیبان</button>
-  </nav>
-
-  <section id="products" class="pane active">
+  </nav>  <section id="products" class="pane active">
     <div class="section-head">
-      <div><h2>فهرست کالاها</h2><p>قیمت فروش براساس قوانین سود به‌صورت خودکار محاسبه می‌شود.</p></div>
+      <div>
+        <h2>فهرست کالاها</h2>
+        <p>قیمت فروش براساس قوانین سود به‌صورت خودکار محاسبه می‌شود.</p>
+      </div>
       <button id="addBtn" class="primary">＋ کالای جدید</button>
     </div>
     <div id="productList" class="product-list"></div>
     <div id="emptyProducts" class="empty">هنوز کالایی ثبت نشده است.<br>از «کالای جدید» یا بخش ورود اطلاعات شروع کن.</div>
     <button id="loadMoreBtn" class="ghost full hidden">نمایش موارد بیشتر</button>
-  </section>
-
-  <section id="rules" class="pane">
+  </section>  <section id="rules" class="pane">
     <div class="section-head">
-      <div><h2>قواعد سود گروهی</h2><p>مثلاً سود لنت برند اتحاد موتور را از سود پیش‌فرض به ۱۰٪ تغییر بده. اگر چند قاعده هم‌زمان منطبق باشند، دقیق‌ترین قاعده اعمال می‌شود.</p></div>
+      <div>
+        <h2>قواعد سود گروهی</h2>
+        <p>مثلاً سود لنت برند اتحاد موتور را از سود پیش‌فرض به ۱۰٪ تغییر بده. اگر چند قاعده هم‌زمان منطبق باشند، دقیق‌ترین قاعده اعمال می‌شود.</p>
+      </div>
     </div>
     <form id="ruleForm" class="card form-grid">
       <label>عبارت در نام کالا<input id="ruleTerm" placeholder="مثلاً لنت"></label>
@@ -74,11 +73,12 @@
       <button class="primary" type="submit">اعمال قاعده روی کالاهای منطبق</button>
     </form>
     <div id="ruleList" class="stack"></div>
-  </section>
-
-  <section id="history" class="pane">
+  </section>  <section id="history" class="pane">
     <div class="section-head">
-      <div><h2>تاریخچه تغییرات</h2><p>قیمت پایه، درصد سود، قیمت فروش قبلی و جدید، زمان و عامل تغییر.</p></div>
+      <div>
+        <h2>تاریخچه تغییرات</h2>
+        <p>قیمت پایه، درصد سود، قیمت فروش قبلی و جدید، زمان و عامل تغییر.</p>
+      </div>
       <button id="clearHistory" class="ghost">پاک‌کردن تاریخچه</button>
     </div>
     <div class="filter-line">
@@ -86,38 +86,83 @@
     </div>
     <div id="historyList" class="stack"></div>
     <button id="historyMoreBtn" class="ghost full hidden">نمایش موارد بیشتر</button>
-  </section>
+  </section>  <section id="tools" class="pane">
+    <div class="section-head">
+      <div>
+        <h2>ورود اطلاعات و پشتیبان</h2>
+        <p>فایل‌ها روی همین دستگاه پردازش می‌شوند و پیش از ثبت نهایی قابل بررسی‌اند.</p>
+      </div>
+    </div><div class="tool-grid">
+  <label class="tool-card">
+    <span class="tool-icon">📊</span>
+    <b>ورود Excel / CSV</b>
+    <small>فایل .xlsx با کتابخانه آنلاین؛ CSV بدون نیاز به اینترنت.</small>
+    <input id="importFile" type="file" accept=".xlsx,.xls,.csv,.txt">
+  </label>
 
-  <section id="tools" class="pane">
-    <div class="section-head"><div><h2>ورود اطلاعات و پشتیبان</h2><p>فایل‌ها روی همین دستگاه پردازش می‌شوند و پیش از ثبت نهایی قابل بررسی‌اند.</p></div></div>
-    <div class="tool-grid">
-      <label class="tool-card"><span class="tool-icon">📊</span><b>ورود Excel / CSV</b><small>فایل .xlsx با کتابخانه آنلاین؛ CSV بدون نیاز به اینترنت.</small><input id="importFile" type="file" accept=".xlsx,.xls,.csv,.txt"></label>
-      <label class="tool-card"><span class="tool-icon">📄</span><b>ورود PDF متنی</b><small>استخراج اولیه از PDFهای متنی؛ PDF اسکن‌شده به OCR نیاز دارد (در این نسخه فعال نیست).</small><input id="pdfFile" type="file" accept=".pdf"></label>
-      <button id="exportCsv" class="tool-card"><span class="tool-icon">⬇️</span><b>خروجی کالاها (CSV)</b><small>قابل بازکردن در Excel</small></button>
-      <button id="backupBtn" class="tool-card"><span class="tool-icon">🛡️</span><b>پشتیبان کامل</b><small>کالاها، قواعد، تاریخچه، منابع و تنظیمات</small></button>
-      <label class="tool-card"><span class="tool-icon">♻️</span><b>بازیابی پشتیبان</b><small>فایل JSON خروجی همین برنامه</small><input id="restoreFile" type="file" accept=".json,application/json"></label>
-      <button id="settingsBtn" class="tool-card"><span class="tool-icon">⚙️</span><b>تنظیمات قیمت</b><small>سود پیش‌فرض، واحد پول و نام کاربر</small></button>
-    </div>
-    <div class="card note"><b>نکته مهم:</b> هر ورود فایل پیش از ثبت نهایی، در قالب پیش‌نمایش (کالای جدید / تغییر قیمت / بدون تغییر / نامعتبر) نشان داده می‌شود و فقط با تأیید شما ثبت می‌گردد. داده‌ها فقط در همین مرورگر/دستگاه ذخیره می‌شوند؛ پشتیبان منظم بگیرید.</div>
-    <div class="card">
-      <h3>مدیریت منابع قیمت</h3>
-      <form id="sourceForm" class="form-grid">
-        <label>نام منبع<input id="sourceName" placeholder="مثلاً لیست قیمت مهر"></label>
-        <label>نوع منبع<input id="sourceType" placeholder="Excel، PDF، تلگرام، دستی…"></label>
-        <button class="primary" type="submit">ثبت منبع دستی</button>
-      </form>
-      <div id="sourceList" class="stack"></div>
-    </div>
-  </section>
-</main>
+  <label class="tool-card">
+    <span class="tool-icon">📄</span>
+    <b>ورود PDF متنی</b>
+    <small>استخراج اولیه از PDFهای متنی؛ PDF اسکن‌شده به OCR نیاز دارد.</small>
+    <input id="pdfFile" type="file" accept=".pdf">
+  </label>
 
-<div id="modalBackdrop" class="backdrop hidden">
+  <button id="exportCsv" class="tool-card">
+    <span class="tool-icon">⬇️</span>
+    <b>خروجی کالاها (CSV)</b>
+    <small>قابل بازکردن در Excel</small>
+  </button>
+
+  <button id="backupBtn" class="tool-card">
+    <span class="tool-icon">🛡️</span>
+    <b>پشتیبان کامل</b>
+    <small>کالاها، قواعد، تاریخچه، منابع و تنظیمات</small>
+  </button>
+
+  <label class="tool-card">
+    <span class="tool-icon">♻️</span>
+    <b>بازیابی پشتیبان</b>
+    <small>فایل JSON خروجی همین برنامه</small>
+    <input id="restoreFile" type="file" accept=".json,application/json">
+  </label>
+
+  <button id="settingsBtn" class="tool-card">
+    <span class="tool-icon">⚙️</span>
+    <b>تنظیمات قیمت</b>
+    <small>سود پیش‌فرض، واحد پول و نام کاربر</small>
+  </button>
+
+  <!-- تنظیمات جدید ظاهر -->
+  <button id="appearanceBtn" type="button" class="tool-card">
+    <span class="tool-icon">🎨</span>
+    <b>تنظیمات ظاهر</b>
+    <small>تم روشن و تاریک، رنگ برنامه، اندازه و نوع فونت</small>
+  </button>
+</div>
+
+<div class="card note">
+  <b>نکته مهم:</b>
+  هر ورود فایل پیش از ثبت نهایی، در قالب پیش‌نمایش (کالای جدید / تغییر قیمت / بدون تغییر / نامعتبر) نشان داده می‌شود و فقط با تأیید شما ثبت می‌گردد. داده‌ها فقط در همین مرورگر/دستگاه ذخیره می‌شوند؛ پشتیبان منظم بگیرید.
+</div>
+
+<div class="card">
+  <h3>مدیریت منابع قیمت</h3>
+  <form id="sourceForm" class="form-grid">
+    <label>نام منبع<input id="sourceName" placeholder="مثلاً لیست قیمت مهر"></label>
+    <label>نوع منبع<input id="sourceType" placeholder="Excel، PDF، تلگرام، دستی…"></label>
+    <button class="primary" type="submit">ثبت منبع دستی</button>
+  </form>
+  <div id="sourceList" class="stack"></div>
+</div>
+
+  </section>
+</main><div id="modalBackdrop" class="backdrop hidden">
   <div class="modal card">
-    <div class="modal-head"><h2 id="modalTitle">کالا</h2><button id="closeModal" class="icon-btn">×</button></div>
+    <div class="modal-head">
+      <h2 id="modalTitle">کالا</h2>
+      <button id="closeModal" class="icon-btn">×</button>
+    </div>
     <div id="modalBody"></div>
   </div>
-</div>
-<div id="toast" class="toast" role="status"></div>
-<footer>یدک‌پرایس · هسته اصلی + موبایل · داده‌ها به‌صورت محلی روی این دستگاه ذخیره می‌شوند</footer>
-<script src="app.js"></script>
-</body></html>
+</div><div id="toast" class="toast" role="status"></div><footer>یدک‌پرایس · هسته اصلی + موبایل · داده‌ها به‌صورت محلی روی این دستگاه ذخیره می‌شوند</footer><script src="app.js"></script></body>
+</html>
