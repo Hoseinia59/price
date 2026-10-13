@@ -107,3 +107,356 @@ footer{text-align:center;color:var(--muted);font-size:.72rem;padding:20px 10px 1
   --bg:#0f172a; --card:#1e293b; --ink:#f1f5f9; --muted:#94a3b8; --line:#334155;
 }
 @media (max-width:420px){.tool-grid{grid-template-columns:1fr}.modal-form .two{grid-template-columns:1fr}.map-grid{grid-template-columns:1fr}}
+/* ==================================================
+تنظیمات ظاهر یدک‌پرایس
+تم روشن و تاریک، رنگ، فونت و خوانایی کالاها
+================================================== */
+
+/* رنگ اصلی */
+:root[data-color="blue"] {
+--primary: #2563eb;
+}
+
+:root[data-color="green"] {
+--primary: #059669;
+}
+
+:root[data-color="purple"] {
+--primary: #7c3aed;
+}
+
+:root[data-color="orange"] {
+--primary: #ea580c;
+}
+
+/* تم روشن */
+:root[data-theme="light"] {
+color-scheme: light;
+--bg: #f3f5f8;
+--card: #ffffff;
+--ink: #111827;
+--muted: #6b7280;
+--line: #e5e7eb;
+--primary-ink: #ffffff;
+}
+
+/* تم تاریک */
+:root[data-theme="dark"] {
+color-scheme: dark;
+--bg: #0b1220;
+--card: #172235;
+--ink: #f1f5f9;
+--muted: #b3bfd0;
+--line: #394960;
+--primary-ink: #ffffff;
+}
+
+/* هماهنگی با تم دستگاه */
+:root[data-theme="system"] {
+color-scheme: light dark;
+}
+
+/* اندازه نوشته‌ها */
+:root[data-font-size="small"] {
+font-size: 14px;
+}
+
+:root[data-font-size="normal"] {
+font-size: 16px;
+}
+
+:root[data-font-size="large"] {
+font-size: 18px;
+}
+
+:root[data-font-size="xlarge"] {
+font-size: 20px;
+}
+
+/* نوع فونت */
+:root[data-font-family="system"] {
+font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
+}
+
+:root[data-font-family="vazir"] {
+font-family: "Vazirmatn", Tahoma, sans-serif;
+}
+
+:root[data-font-family="tahoma"] {
+font-family: Tahoma, sans-serif;
+}
+
+:root[data-font-family="arial"] {
+font-family: Arial, Tahoma, sans-serif;
+}
+
+/* اعمال فونت انتخاب‌شده */
+body,
+button,
+input,
+select,
+textarea {
+font-family: inherit;
+}
+
+body {
+background: var(--bg);
+color: var(--ink);
+}
+
+/* هماهنگی کارت‌ها با تم */
+.card,
+.product-card,
+.list-row,
+.tool-card {
+background-color: var(--card);
+color: var(--ink);
+border-color: var(--line);
+}
+
+.product-card {
+border: 1px solid var(--line);
+}
+
+.product-title,
+.product-meta,
+.price,
+.subprice {
+overflow-wrap: anywhere;
+}
+
+.product-title {
+color: var(--ink);
+line-height: 1.7;
+}
+
+.product-meta {
+line-height: 1.8;
+}
+
+.price-row {
+gap: 10px;
+align-items: flex-start;
+}
+
+.price {
+line-height: 1.7;
+}
+
+.subprice {
+line-height: 1.8;
+}
+
+.price-row > .pill {
+max-width: 48%;
+white-space: normal;
+overflow-wrap: anywhere;
+}
+
+/* فیلدها و دکمه‌ها */
+.icon-btn,
+.ghost,
+.small-btn,
+.tab,
+.filter-line select,
+.filter-line input,
+.search-panel input,
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.modal-form input,
+.modal-form select,
+.modal-form textarea {
+color: var(--ink);
+border-color: var(--line);
+}
+
+.icon-btn,
+.ghost,
+.small-btn,
+.tab,
+.filter-line select,
+.filter-line input,
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.modal-form input,
+.modal-form select,
+.modal-form textarea {
+background-color: var(--card);
+}
+
+/* دکمه‌های اصلی */
+.primary {
+background-color: var(--primary);
+color: var(--primary-ink);
+}
+
+/* تب انتخاب‌شده */
+.tab.active {
+background-color: var(--primary);
+border-color: var(--primary);
+color: #ffffff;
+}
+
+/* رنگ نوشته‌های فرعی */
+.tool-card small,
+.list-row small,
+.product-meta,
+.subprice,
+.note {
+color: var(--muted);
+}
+
+/* تم تاریک: اجزای ثابت با زمینه روشن */
+:root[data-theme="dark"] .top {
+background: #070d18;
+color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .top p {
+color: #cbd5e1;
+}
+
+:root[data-theme="dark"] .icon-btn,
+:root[data-theme="dark"] .ghost,
+:root[data-theme="dark"] .small-btn {
+background-color: var(--card);
+color: var(--ink);
+border-color: var(--line);
+}
+
+:root[data-theme="dark"] .tab {
+background-color: var(--card);
+color: var(--ink);
+border-color: var(--line);
+}
+
+:root[data-theme="dark"] .tab.active {
+background-color: var(--primary);
+color: #ffffff;
+}
+
+:root[data-theme="dark"] .pill {
+background: #263750;
+color: #dce8ff;
+}
+
+:root[data-theme="dark"] .pill.final {
+background: #103b31;
+color: #a7f3d0;
+}
+
+:root[data-theme="dark"] .pill.manual {
+background: #482f20;
+color: #fed7aa;
+}
+
+:root[data-theme="dark"] .pill.warn {
+background: #4a2228;
+color: #fecaca;
+}
+
+:root[data-theme="dark"] .import-preview-table tr.row-new td {
+background: #103b31;
+}
+
+:root[data-theme="dark"] .import-preview-table tr.row-updated td {
+background: #1d3453;
+}
+
+:root[data-theme="dark"] .import-preview-table tr.row-skip td {
+background: #202c3d;
+color: var(--muted);
+}
+
+:root[data-theme="dark"] .import-preview-table tr.row-error td {
+background: #4a2228;
+}
+
+:root[data-theme="dark"] .import-summary span {
+background: #263750;
+color: var(--ink);
+}
+
+:root[data-theme="dark"] .modal {
+background: var(--card);
+color: var(--ink);
+}
+
+:root[data-theme="dark"] .empty {
+color: var(--muted);
+}
+
+/* فاصله معمولی سطرهای کالا */
+:root[data-density="comfortable"] .product-card {
+padding: 14px;
+}
+
+:root[data-density="comfortable"] .product-list {
+gap: 10px;
+}
+
+/* سطرهای بزرگ‌تر و خواناتر */
+:root[data-density="spacious"] .product-card {
+padding: 18px 16px;
+}
+
+:root[data-density="spacious"] .product-list {
+gap: 14px;
+}
+
+:root[data-density="spacious"] .product-title {
+font-size: 1.12em;
+line-height: 1.9;
+}
+
+:root[data-density="spacious"] .product-meta {
+gap: 8px;
+line-height: 2;
+}
+
+:root[data-density="spacious"] .price {
+font-size: 1.3em;
+}
+
+:root[data-density="spacious"] .card-actions {
+gap: 8px;
+margin-top: 14px;
+}
+
+:root[data-density="spacious"] .small-btn {
+padding: 9px 12px;
+}
+
+/* سطرهای فشرده */
+:root[data-density="compact"] .product-card {
+padding: 8px 10px;
+}
+
+:root[data-density="compact"] .product-list {
+gap: 6px;
+}
+
+:root[data-density="compact"] .product-title {
+line-height: 1.4;
+}
+
+:root[data-density="compact"] .product-meta {
+gap: 4px;
+}
+
+/* نمایش مناسب روی موبایل */
+@media (max-width: 420px) {
+.product-title {
+overflow-wrap: anywhere;
+}
+
+.price-row {
+flex-wrap: wrap;
+}
+
+.section-head {
+flex-wrap: wrap;
+}
+}
