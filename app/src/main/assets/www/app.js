@@ -463,6 +463,112 @@ $('sourceForm').onsubmit = async e => {
   await put('sources', { id: uid(), name, type, createdAt: new Date().toISOString(), createdDisplay: now() });
   e.target.reset(); await renderSources(); notify('منبع ثبت شد');
 };
+/* ------------------------- تنظیمات ظاهر و خوانایی ------------------------- */
+function applyAppearance() {
+const appearance = {
+theme: localStorage.getItem('yadak_theme') || 'system',
+fontSize: localStorage.getItem('yadak_font_size') || 'normal',
+fontFamily: localStorage.getItem('yadak_font_family') || 'system',
+color: localStorage.getItem('yadak_color') || 'blue',
+density: localStorage.getItem('yadak_density') || 'comfortable'
+};
+
+const root = document.documentElement;
+root.dataset.theme = appearance.theme;
+root.dataset.fontSize = appearance.fontSize;
+root.dataset.fontFamily = appearance.fontFamily;
+root.dataset.color = appearance.color;
+root.dataset.density = appearance.density;
+
+const metaTheme = document.querySelector('meta[name="theme-color"]');
+if (metaTheme) {
+metaTheme.content = appearance.theme === 'dark' ? '#0f172a' : '#2563eb';
+}
+}
+
+applyAppearance();
+
+const appearanceButton = document.getElementById('appearanceBtn');
+
+if (appearanceButton) {
+appearanceButton.onclick = () => {
+const get = (key, fallback) => localStorage.getItem(key) || fallback;
+
+showModal('تنظیمات ظاهر و خوانایی', `
+  <form id="appearanceForm" class="modal-form">
+    <label>تم برنامه
+      <select name="theme">
+        <option value="system" ${get('yadak_theme','system') === 'system' ? 'selected' : ''}>هماهنگ با گوشی</option>
+        <option value="light" ${get('yadak_theme','system') === 'light' ? 'selected' : ''}>روشن</option>
+        <option value="dark" ${get('yadak_theme','system') === 'dark' ? 'selected' : ''}>تاریک</option>
+      </select>
+    </label>
+
+    <label>اندازه نوشته‌ها
+      <select name="fontSize">
+        <option value="small" ${get('yadak_font_size','normal') === 'small' ? 'selected' : ''}>کوچک</option>
+        <option value="normal" ${get('yadak_font_size','normal') === 'normal' ? 'selected' : ''}>متوسط</option>
+        <option value="large" ${get('yadak_font_size','normal') === 'large' ? 'selected' : ''}>بزرگ</option>
+        <option value="xlarge" ${get('yadak_font_size','normal') === 'xlarge' ? 'selected' : ''}>خیلی بزرگ</option>
+      </select>
+    </label>
+
+    <label>نوع فونت
+      <select name="fontFamily">
+        <option value="system" ${get('yadak_font_family','system') === 'system' ? 'selected' : ''}>پیش‌فرض دستگاه</option>
+        <option value="vazir" ${get('yadak_font_family','system') === 'vazir' ? 'selected' : ''}>Vazirmatn (اگر نصب باشد)</option>
+        <option value="tahoma" ${get('yadak_font_family','system') === 'tahoma' ? 'selected' : ''}>Tahoma</option>
+        <option value="arial" ${get('yadak_font_family','system') === 'arial' ? 'selected' : ''}>Arial</option>
+      </select>
+    </label>
+
+    <label>رنگ اصلی برنامه
+      <select name="color">
+        <option value="blue" ${get('yadak_color','blue') === 'blue' ? 'selected' : ''}>آبی</option>
+        <option value="green" ${get('yadak_color','blue') === 'green' ? 'selected' : ''}>سبز</option>
+        <option value="purple" ${get('yadak_color','blue') === 'purple' ? 'selected' : ''}>بنفش</option>
+        <option value="orange" ${get('yadak_color','blue') === 'orange' ? 'selected' : ''}>نارنجی</option>
+      </select>
+    </label>
+
+    <label>نمایش سطر کالاها
+      <select name="density">
+        <option value="comfortable" ${get('yadak_density','comfortable') === 'comfortable' ? 'selected' : ''}>معمولی</option>
+        <option value="spacious" ${get('yadak_density','comfortable') === 'spacious' ? 'selected' : ''}>درشت و خوانا</option>
+        <option value="compact" ${get('yadak_density','comfortable') === 'compact' ? 'selected' : ''}>فشرده</option>
+      </select>
+    </label>
+
+    <div class="modal-actions">
+      <button class="primary" type="submit">ذخیره تنظیمات</button>
+      <button class="ghost" type="button" id="cancelAppearance">انصراف</button>
+    </div>
+  </form>
+`);
+
+document.getElementById('cancelAppearance').onclick = closeModal;
+
+document.getElementById('appearanceForm').onsubmit = event => {
+  event.preventDefault();
+
+  const form = new FormData(event.target);
+
+  localStorage.setItem('yadak_theme', String(form.get('theme')));
+  localStorage.setItem('yadak_font_size', String(form.get('fontSize')));
+  localStorage.setItem('yadak_font_family', String(form.get('fontFamily')));
+  localStorage.setItem('yadak_color', String(form.get('color')));
+  localStorage.setItem('yadak_density', String(form.get('density')));
+
+  applyAppearance();
+  closeModal();
+
+  if (typeof notify === 'function') {
+    notify('تنظیمات ظاهر ذخیره شد');
+  }
+};
+
+};
+}
 
 /* -------------------------------- تنظیمات -------------------------------- */
 $('settingsBtn').onclick = async () => {
