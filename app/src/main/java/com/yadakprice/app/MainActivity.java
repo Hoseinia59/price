@@ -1,4 +1,3 @@
-
 package com.yadakprice.app;
 
 import android.Manifest;
