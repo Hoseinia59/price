@@ -1,3 +1,4 @@
+
 package com.yadakprice.app;
 
 import android.Manifest;
@@ -55,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
                         .build();
 
         WebSettings settings = webView.getSettings();
-
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
@@ -93,7 +93,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            // انتخاب فایل از حافظه دستگاه
             @Override
             public boolean onShowFileChooser(
                     WebView view,
@@ -108,12 +107,10 @@ public class MainActivity extends AppCompatActivity {
 
                 try {
                     Intent intent = params.createIntent();
-
                     startActivityForResult(
                             intent,
                             FILE_CHOOSER_REQUEST
                     );
-
                     return true;
 
                 } catch (Exception e) {
@@ -140,7 +137,6 @@ public class MainActivity extends AppCompatActivity {
     private void handleWebPermissionRequest(
             @NonNull PermissionRequest request
     ) {
-        // فقط به صفحه داخلی برنامه اجازه دسترسی می‌دهیم.
         Uri origin = request.getOrigin();
 
         if (!"https".equals(origin.getScheme())
@@ -276,6 +272,11 @@ public class MainActivity extends AppCompatActivity {
         if (pendingWebPermissionRequest != null) {
             pendingWebPermissionRequest.deny();
             pendingWebPermissionRequest = null;
+        }
+
+        if (fileChooserCallback != null) {
+            fileChooserCallback.onReceiveValue(null);
+            fileChooserCallback = null;
         }
 
         if (webView != null) {
