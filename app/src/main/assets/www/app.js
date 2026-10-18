@@ -2121,3 +2121,160 @@ init().catch(e => {
   console.error(e);
   notify('برنامه نتوانست پایگاه داده محلی را باز کند.');
 });
+
+/* =========================================================
+   اتصال اسکنر بارکد به جست‌وجوی یدک‌پرایس
+   این بخش را به انتهای app.js اضافه کنید.
+   ========================================================= */
+
+let yadakBarcodeScanner = null;
+let yadakBarcodeHandled = false;
+
+async function stopYadakBarcodeScanner() {
+  const scanner = yadakBarcodeScanner;
+  yadakBarcodeScanner = null;
+
+  if (!scanner) return;
+
+  try {
+    if (scanner.isScanning) {
+      await scanner.stop();
+    }
+  } catch (e) {
+    console.warn('توقف دوربین:', e);
+  }
+
+  try {
+    scanner.clear();
+  } catch (e) {
+    // ممکن است اسکنر قبلاً بسته شده باشد.
+  }
+}
+
+async function startBarcodeScanner() {
+  if (yadakBarcodeScanner) return;
+
+  try {
+    // کتابخانه اسکن بارکد؛ بار اول به اینترنت نیاز دارد.
+    if (!window.Html5Qrcode) {
+      notify('در حال بارگذاری اسکنر بارکد...');
+
+      await loadScript(
+        'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+      );
+    }
+
+    showModal('اسکن بارکد قطعه', `
+      <p>
+        بارکد قطعه را مقابل دوربین قرار بده.
+        پس از شناسایی، جست‌وجو خودکار انجام می‌شود.
+      </p>
+
+      <div
+        id="yadakBarcodeReader"
+        style="
+          width:100%;
+          max-width:500px;
+          margin:12px auto;
+          overflow:hidden;
+        "
+      ></div>
+
+      <p style="text-align:center">
+        برای اسکن، اجازه دسترسی دوربین را صادر کن.
+      </p>
+
+      <div class="modal-actions">
+        <button
+          type="button"
+          class="ghost"
+          id="cancelYadakScan"
+        >
+          انصراف
+        </button>
+      </div>
+    `);
+
+    $('cancelYadakScan').onclick = async () => {
+      await stopYadakBarcodeScanner();
+      closeModal();
+    };
+
+    const scanner = new Html5Qrcode('yadakBarcodeReader');
+    yadakBarcodeScanner = scanner;
+    yadakBarcodeHandled = false;
+
+    await scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 150 },
+        aspectRatio: 1.5
+      },
+      async decodedText => {
+        if (yadakBarcodeHandled) return;
+
+        yadakBarcodeHandled = true;
+
+        const barcode = String(decodedText || '').trim();
+
+        await stopYadakBarcodeScanner();
+        closeModal();
+
+        if (!barcode) {
+          notify('بارکد معتبری خوانده نشد.');
+          return;
+        }
+
+        // واردکردن بارکد در کادر جست‌وجوی اصلی
+        $('search').value = barcode;
+
+        // اجرای موتور جست‌وجوی فعلی برنامه
+        await renderProducts(true);
+
+        notify('بارکد خوانده شد: ' + barcode);
+      },
+      () => {
+        // خطاهای عادی حین یافتن بارکد نادیده گرفته می‌شوند.
+      }
+    );
+
+  } catch (error) {
+    await stopYadakBarcodeScanner();
+
+    if ($('modalBackdrop')) {
+      closeModal();
+    }
+
+    console.error('Barcode scanner error:', error);
+
+    notify(
+      'اسکنر فعال نشد. دسترسی دوربین، اتصال اینترنت ' +
+      'و مجوزهای برنامه را بررسی کن.'
+    );
+  }
+}
+
+// اتصال دکمه‌ای که در index.html ساخته‌ای
+if ($('scanBarcodeBtn')) {
+  $('scanBarcodeBtn').addEventListener(
+    'click',
+    startBarcodeScanner
+  );
+}
+
+// با بستن پنجره، دوربین نیز متوقف شود.
+if ($('closeModal')) {
+  $('closeModal').addEventListener(
+    'click',
+    stopYadakBarcodeScanner
+  );
+}
+
+if ($('modalBackdrop')) {
+  $('modalBackdrop').addEventListener('click', e => {
+    if (e.target === $('modalBackdrop')) {
+      stopYadakBarcodeScanner();
+    }
+  });
+}
