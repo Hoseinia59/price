@@ -1,3 +1,4 @@
+
 package com.yadakprice.app;
 
 import android.Manifest;
@@ -22,6 +23,9 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
@@ -29,10 +33,11 @@ public class MainActivity extends AppCompatActivity {
     private static final String VIRTUAL_DOMAIN =
             "appassets.androidplatform.net";
 
-    private static final int MIC_PERMISSION_REQUEST = 1001;
+    private static final int WEB_PERMISSION_REQUEST = 1001;
     private static final int FILE_CHOOSER_REQUEST = 1002;
 
     private ValueCallback<Uri[]> fileChooserCallback;
+    private PermissionRequest pendingWebPermissionRequest;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,10 +61,7 @@ public class MainActivity extends AppCompatActivity {
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
         settings.setAllowFileAccess(false);
-
-        // اجازه دسترسی به URI فایل انتخاب‌شده از فایل‌منیجر
         settings.setAllowContentAccess(true);
-
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
 
         webView.setWebViewClient(new WebViewClient() {
@@ -80,12 +82,19 @@ public class MainActivity extends AppCompatActivity {
             public void onPermissionRequest(
                     @NonNull PermissionRequest request
             ) {
-                runOnUiThread(() ->
-                        request.grant(request.getResources())
-                );
+                runOnUiThread(() -> handleWebPermissionRequest(request));
             }
 
-            // بازکردن انتخاب‌گر فایل اندروید برای ورودی‌های HTML
+            @Override
+            public void onPermissionRequestCanceled(
+                    @NonNull PermissionRequest request
+            ) {
+                if (pendingWebPermissionRequest == request) {
+                    pendingWebPermissionRequest = null;
+                }
+            }
+
+            // انتخاب فایل از حافظه دستگاه
             @Override
             public boolean onShowFileChooser(
                     WebView view,
@@ -123,24 +132,108 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-        ) != PackageManager.PERMISSION_GRANTED) {
-
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{
-                            Manifest.permission.RECORD_AUDIO
-                    },
-                    MIC_PERMISSION_REQUEST
-            );
-        }
-
         webView.loadUrl(
                 "https://" + VIRTUAL_DOMAIN
                         + "/assets/www/index.html"
         );
+    }
+
+    private void handleWebPermissionRequest(
+            @NonNull PermissionRequest request
+    ) {
+        // فقط به صفحه داخلی برنامه اجازه دسترسی می‌دهیم.
+        Uri origin = request.getOrigin();
+
+        if (!"https".equals(origin.getScheme())
+                || !VIRTUAL_DOMAIN.equals(origin.getHost())) {
+            request.deny();
+            return;
+        }
+
+        boolean needsCamera = false;
+        boolean needsMicrophone = false;
+
+        for (String resource : request.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)) {
+                needsCamera = true;
+            } else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)) {
+                needsMicrophone = true;
+            } else {
+                request.deny();
+                return;
+            }
+        }
+
+        List<String> missingPermissions = new ArrayList<>();
+
+        if (needsCamera
+                && ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.CAMERA
+                ) != PackageManager.PERMISSION_GRANTED) {
+            missingPermissions.add(Manifest.permission.CAMERA);
+        }
+
+        if (needsMicrophone
+                && ContextCompat.checkSelfPermission(
+                        this,
+                        Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED) {
+            missingPermissions.add(Manifest.permission.RECORD_AUDIO);
+        }
+
+        if (missingPermissions.isEmpty()) {
+            request.grant(request.getResources());
+            return;
+        }
+
+        if (pendingWebPermissionRequest != null) {
+            pendingWebPermissionRequest.deny();
+        }
+
+        pendingWebPermissionRequest = request;
+
+        ActivityCompat.requestPermissions(
+                this,
+                missingPermissions.toArray(new String[0]),
+                WEB_PERMISSION_REQUEST
+        );
+    }
+
+    private void finishWebPermissionRequest() {
+        PermissionRequest request = pendingWebPermissionRequest;
+        pendingWebPermissionRequest = null;
+
+        if (request == null) {
+            return;
+        }
+
+        List<String> grantedResources = new ArrayList<>();
+
+        for (String resource : request.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)
+                    && ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_GRANTED) {
+
+                grantedResources.add(resource);
+
+            } else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)
+                    && ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED) {
+
+                grantedResources.add(resource);
+            }
+        }
+
+        if (grantedResources.isEmpty()) {
+            request.deny();
+        } else {
+            request.grant(grantedResources.toArray(new String[0]));
+        }
     }
 
     @Override
@@ -149,50 +242,54 @@ public class MainActivity extends AppCompatActivity {
             int resultCode,
             Intent data
     ) {
-        super.onActivityResult(
-                requestCode,
-                resultCode,
-                data
-        );
+        super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == FILE_CHOOSER_REQUEST) {
+        if (requestCode == FILE_CHOOSER_REQUEST
+                && fileChooserCallback != null) {
 
-            if (fileChooserCallback != null) {
+            Uri[] results = null;
 
-                Uri[] results = null;
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                Uri uri = data.getData();
 
-                if (resultCode == Activity.RESULT_OK
-                        && data != null) {
+                if (uri != null) {
+                    results = new Uri[]{uri};
 
-                    Uri uri = data.getData();
+                } else if (data.getClipData() != null) {
+                    int count = data.getClipData().getItemCount();
+                    results = new Uri[count];
 
-                    if (uri != null) {
-                        results = new Uri[]{uri};
-
-                    } else if (data.getClipData() != null) {
-
-                        int count =
-                                data.getClipData().getItemCount();
-
-                        results = new Uri[count];
-
-                        for (int i = 0; i < count; i++) {
-                            results[i] = data.getClipData()
-                                    .getItemAt(i)
-                                    .getUri();
-                        }
+                    for (int i = 0; i < count; i++) {
+                        results[i] = data.getClipData()
+                                .getItemAt(i)
+                                .getUri();
                     }
                 }
-
-                fileChooserCallback.onReceiveValue(results);
-                fileChooserCallback = null;
             }
+
+            fileChooserCallback.onReceiveValue(results);
+            fileChooserCallback = null;
         }
     }
 
     @Override
+    protected void onDestroy() {
+        if (pendingWebPermissionRequest != null) {
+            pendingWebPermissionRequest.deny();
+            pendingWebPermissionRequest = null;
+        }
+
+        if (webView != null) {
+            webView.destroy();
+            webView = null;
+        }
+
+        super.onDestroy();
+    }
+
+    @Override
     public void onBackPressed() {
-        if (webView.canGoBack()) {
+        if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
@@ -211,16 +308,22 @@ public class MainActivity extends AppCompatActivity {
                 grantResults
         );
 
-        if (requestCode == MIC_PERMISSION_REQUEST
-                && (grantResults.length == 0
-                || grantResults[0]
-                != PackageManager.PERMISSION_GRANTED)) {
+        if (requestCode == WEB_PERMISSION_REQUEST) {
+            finishWebPermissionRequest();
 
-            Toast.makeText(
-                    this,
-                    "بدون دسترسی میکروفون، جست‌وجوی صوتی کار نمی‌کند.",
-                    Toast.LENGTH_SHORT
-            ).show();
+            boolean cameraGranted =
+                    ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.CAMERA
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+            if (!cameraGranted) {
+                Toast.makeText(
+                        this,
+                        "برای اسکن بارکد باید اجازه دوربین را فعال کنی.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
         }
     }
 }
