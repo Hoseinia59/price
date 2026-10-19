@@ -2308,3 +2308,95 @@ if ($('modalBackdrop')) {
     }
   });
 }
+/* OCR خواندن نوشته روی جعبه و تایپ خودکار */
+
+async function startTextScanner() {
+  try {
+    if (!window.Tesseract) {
+      notify('در حال بارگذاری متن‌خوان...');
+
+      await loadScript(
+        'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
+      );
+    }
+
+    showModal('خواندن نوشته روی قطعه', `
+      <video id="textCamera"
+        autoplay playsinline
+        style="width:100%;border-radius:12px">
+      </video>
+
+      <canvas id="textCanvas" hidden></canvas>
+
+      <p>دوربین را مقابل نوشته روی جعبه بگیر.</p>
+
+      <button id="captureText" class="primary">
+        خواندن و تایپ نوشته
+      </button>
+
+      <button id="cancelTextScan" class="ghost">
+        انصراف
+      </button>
+    `);
+
+    const video = $('textCamera');
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false
+    });
+
+    video.srcObject = stream;
+
+    $('cancelTextScan').onclick = () => {
+      stream.getTracks().forEach(track => track.stop());
+      closeModal();
+    };
+
+    $('captureText').onclick = async () => {
+      try {
+        const canvas = $('textCanvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+
+        canvas.getContext('2d').drawImage(
+          video, 0, 0, canvas.width, canvas.height
+        );
+
+        notify('در حال خواندن نوشته...');
+
+        const result = await Tesseract.recognize(
+          canvas,
+          'fas+eng',
+          {
+            logger: () => {}
+          }
+        );
+
+        const text = String(result.data.text || '')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (!text) {
+          notify('نوشته خوانده نشد؛ دوربین را نزدیک‌تر بگیر.');
+          return;
+        }
+
+        stream.getTracks().forEach(track => track.stop());
+        closeModal();
+
+        $('search').value = text;
+        await renderProducts(true);
+
+        notify('متن خوانده و در جست‌وجو وارد شد.');
+      } catch (error) {
+        console.error(error);
+        notify('خواندن نوشته ناموفق بود.');
+      }
+    };
+
+  } catch (error) {
+    console.error(error);
+    notify('دسترسی دوربین یا بارگذاری متن‌خوان ناموفق بود.');
+  }
+}
