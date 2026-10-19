@@ -2129,6 +2129,9 @@ init().catch(e => {
 
 /* OCR خواندن نوشته روی جعبه و تایپ خودکار */
 
+
+/* OCR فارسی و انگلیسی */
+
 let yadakTextStream = null;
 let yadakTextBusy = false;
 
@@ -2137,11 +2140,10 @@ function stopYadakTextScanner() {
     yadakTextStream.getTracks().forEach(track => track.stop());
     yadakTextStream = null;
   }
-  yadakTextBusy = false;
 }
 
 async function startTextScanner() {
-  if (yadakTextBusy) return;
+  if (yadakTextBusy || yadakTextStream) return;
   yadakTextBusy = true;
 
   try {
@@ -2155,32 +2157,22 @@ async function startTextScanner() {
     showModal('خواندن نوشته روی قطعه', `
       <video id="textCamera" autoplay playsinline
         style="width:100%;border-radius:12px;background:#111"></video>
-
       <canvas id="textCanvas" hidden></canvas>
-
-      <p>دوربین را مقابل نوشته قطعه بگیر و تصویر را ثابت نگه دار.</p>
-
+      <p>نوشته را نزدیک، واضح و زیر نور مناسب بگیر.</p>
       <button id="captureText" class="primary">
         خواندن و تایپ نوشته
       </button>
-
-      <button id="cancelTextScan" class="ghost">
-        انصراف
-      </button>
+      <button id="cancelTextScan" class="ghost">انصراف</button>
     `);
 
     const video = $('textCamera');
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('دوربین در این محیط در دسترس نیست.');
-    }
 
     yadakTextStream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       }
     });
 
@@ -2194,60 +2186,112 @@ async function startTextScanner() {
 
     $('captureText').onclick = async () => {
       const button = $('captureText');
-
       if (button.disabled) return;
       button.disabled = true;
 
+      let worker;
+
       try {
-        if (!video.videoWidth || !video.videoHeight) {
-          throw new Error('دوربین هنوز آماده نیست.');
+        const canvas = $('textCanvas');
+
+        if (!video.videoWidth) {
+          throw new Error('دوربین آماده نیست.');
         }
 
-        const canvas = $('textCanvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        canvas.width = video.videoWidth * 2;
+        canvas.height = video.videoHeight * 2;
 
-        const context = canvas.getContext('2d');
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext('2d', {
+          willReadFrequently: true
+        });
 
-        notify('در حال تشخیص نوشته فارسی و انگلیسی...');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const result = await window.Tesseract.recognize(
-          canvas,
-          'fas+eng',
-          { logger: () => {} }
+        const image = ctx.getImageData(
+          0, 0, canvas.width, canvas.height
         );
 
-        const text = String(result?.data?.text || '')
+        const pixels = image.data;
+
+        for (let i = 0; i < pixels.length; i += 4) {
+          const gray = Math.round(
+            pixels[i] * 0.299 +
+            pixels[i + 1] * 0.587 +
+            pixels[i + 2] * 0.114
+          );
+
+          const contrast = Math.max(
+            0, Math.min(255, (gray - 128) * 1.45 + 128)
+          );
+
+          pixels[i] = contrast;
+          pixels[i + 1] = contrast;
+          pixels[i + 2] = contrast;
+        }
+
+        ctx.putImageData(image, 0, 0);
+
+        notify('در حال بارگذاری زبان فارسی...');
+
+        worker = await window.Tesseract.createWorker(
+          'fas+eng',
+          1,
+          {
+            langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+            logger: message => {
+              if (message.status === 'recognizing text') {
+                notify(
+                  'تشخیص متن: ' +
+                  Math.round((message.progress || 0) * 100) + '%'
+                );
+              }
+            }
+          }
+        );
+
+        const result = await worker.recognize(canvas);
+
+        const recognized = String(result?.data?.text || '')
           .replace(/\s+/g, ' ')
           .trim();
 
-        if (!text) {
-          notify('متنی تشخیص داده نشد؛ دوربین را نزدیک‌تر بگیر.');
+        if (!recognized) {
+          notify('متنی خوانده نشد؛ نور و وضوح تصویر را بهتر کن.');
           return;
         }
 
         stopYadakTextScanner();
         closeModal();
 
-        $('search').value = text;
+        $('search').value = recognized;
         await renderProducts(true);
 
-        notify('متن وارد جست‌وجو شد: ' + text);
+        notify('متن وارد جست‌وجو شد.');
       } catch (error) {
-        console.error(error);
-        notify('خطا در خواندن متن: ' + (error.message || 'دوباره تلاش کن.'));
+        console.error('OCR error:', error);
+        notify(
+          'خطای متن‌خوان: ' +
+          (error.message || 'اتصال اینترنت یا زبان فارسی را بررسی کن.')
+        );
       } finally {
-        if ($('captureText')) $('captureText').disabled = false;
+        if (worker) {
+          try {
+            await worker.terminate();
+          } catch (_) {}
+        }
+
+        if ($('captureText')) {
+          $('captureText').disabled = false;
+        }
       }
     };
-
   } catch (error) {
     console.error(error);
     stopYadakTextScanner();
+
     if ($('modalBackdrop')) closeModal();
 
-    notify('دوربین یا متن‌خوان اجرا نشد: ' + (error.message || ''));
+    notify('خطای دوربین: ' + (error.message || ''));
   } finally {
     yadakTextBusy = false;
   }
@@ -2258,7 +2302,10 @@ if ($('scanTextBtn')) {
 }
 
 if ($('closeModal')) {
-  $('closeModal').addEventListener('click', stopYadakTextScanner);
+  $('closeModal').addEventListener(
+    'click',
+    stopYadakTextScanner
+  );
 }
 
 if ($('modalBackdrop')) {
@@ -2268,3 +2315,4 @@ if ($('modalBackdrop')) {
     }
   });
 }
+
