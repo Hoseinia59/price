@@ -2137,27 +2137,61 @@ async function stopYadakBarcodeScanner() {
   if (!scanner) return;
 
   try {
-    if (scanner.isScanning) {
-      await scanner.stop();
-    }
-  } catch (e) {
-    console.warn('توقف دوربین:', e);
-  }
+    if (scanner.isScanning) await scanner.stop();
+  } catch (e) {}
 
   try {
     scanner.clear();
-  } catch (e) {
-    // ممکن است اسکنر قبلاً بسته شده باشد.
-  }
+  } catch (e) {}
 }
 
+// تبدیل اعداد فارسی و عربی به انگلیسی
+function barcodeEnglishDigits(value) {
+  return String(value || '')
+    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .trim();
+}
+
+// جست‌وجوی کالا با اولویت کد فنی
+async function searchScannedProduct(value) {
+  const code = barcodeEnglishDigits(value);
+  if (!code) return;
+
+  $('search').value = code;
+  await renderProducts(true);
+
+  const products = await all('products');
+
+  // تطبیق دقیق کد فنی، OEM یا بارکد
+  const exact = products.filter(p => {
+    const scanned = code.replace(/\s/g, '');
+    return [
+      p.code,
+      p.oem,
+      p.barcode
+    ].some(v =>
+      barcodeEnglishDigits(v).replace(/\s/g, '') === scanned
+    );
+  });
+
+  if (exact.length) {
+    $('search').value = code;
+    await renderProducts(true);
+    notify('کالا شناسایی شد: ' + exact[0].name);
+    return;
+  }
+
+  notify('کد خوانده شد؛ کالا در بانک اطلاعاتی پیدا نشد.');
+}
+
+// باز کردن دوربین
 async function startBarcodeScanner() {
   if (yadakBarcodeScanner) return;
 
   try {
-    // کتابخانه اسکن بارکد؛ بار اول به اینترنت نیاز دارد.
     if (!window.Html5Qrcode) {
-      notify('در حال بارگذاری اسکنر بارکد...');
+      notify('در حال بارگذاری بارکدخوان...');
 
       await loadScript(
         'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
@@ -2165,31 +2199,26 @@ async function startBarcodeScanner() {
     }
 
     showModal('اسکن بارکد قطعه', `
-      <p>
-        بارکد قطعه را مقابل دوربین قرار بده.
-        پس از شناسایی، جست‌وجو خودکار انجام می‌شود.
-      </p>
+      <p>بارکد خطی یا مربعی را مقابل دوربین قرار بده.</p>
 
-      <div
-        id="yadakBarcodeReader"
-        style="
-          width:100%;
-          max-width:500px;
-          margin:12px auto;
-          overflow:hidden;
-        "
-      ></div>
+      <div id="yadakBarcodeReader"
+        style="width:100%;max-width:500px;margin:12px auto">
+      </div>
 
-      <p style="text-align:center">
-        برای اسکن، اجازه دسترسی دوربین را صادر کن.
-      </p>
+      <hr>
+
+      <label>
+        ورود دستی کد فنی یا بارکد
+        <input id="manualPartCode"
+          dir="ltr"
+          placeholder="مثلاً 0940201299">
+      </label>
 
       <div class="modal-actions">
-        <button
-          type="button"
-          class="ghost"
-          id="cancelYadakScan"
-        >
+        <button id="manualPartSearch" class="primary">
+          جست‌وجو
+        </button>
+        <button id="cancelYadakScan" class="ghost">
           انصراف
         </button>
       </div>
@@ -2200,6 +2229,13 @@ async function startBarcodeScanner() {
       closeModal();
     };
 
+    $('manualPartSearch').onclick = async () => {
+      const value = $('manualPartCode').value;
+      await stopYadakBarcodeScanner();
+      closeModal();
+      await searchScannedProduct(value);
+    };
+
     const scanner = new Html5Qrcode('yadakBarcodeReader');
     yadakBarcodeScanner = scanner;
     yadakBarcodeHandled = false;
@@ -2207,55 +2243,50 @@ async function startBarcodeScanner() {
     await scanner.start(
       { facingMode: 'environment' },
       {
-        fps: 10,
-        qrbox: { width: 250, height: 150 },
-        aspectRatio: 1.5
+        fps: 15,
+        qrbox: (width, height) => ({
+          width: Math.min(width * 0.9, 320),
+          height: Math.min(height * 0.65, 220)
+        }),
+        aspectRatio: 1.5,
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.ITF
+        ]
       },
       async decodedText => {
         if (yadakBarcodeHandled) return;
-
         yadakBarcodeHandled = true;
 
-        const barcode = String(decodedText || '').trim();
+        const value = barcodeEnglishDigits(decodedText);
 
         await stopYadakBarcodeScanner();
         closeModal();
 
-        if (!barcode) {
-          notify('بارکد معتبری خوانده نشد.');
-          return;
-        }
-
-        // واردکردن بارکد در کادر جست‌وجوی اصلی
-        $('search').value = barcode;
-
-        // اجرای موتور جست‌وجوی فعلی برنامه
-        await renderProducts(true);
-
-        notify('بارکد خوانده شد: ' + barcode);
+        await searchScannedProduct(value);
       },
-      () => {
-        // خطاهای عادی حین یافتن بارکد نادیده گرفته می‌شوند.
-      }
+      () => {}
     );
 
   } catch (error) {
     await stopYadakBarcodeScanner();
 
-    if ($('modalBackdrop')) {
-      closeModal();
-    }
+    if ($('modalBackdrop')) closeModal();
 
-    console.error('Barcode scanner error:', error);
+    console.error(error);
 
     notify(
-      'اسکنر فعال نشد. دسترسی دوربین، اتصال اینترنت ' +
-      'و مجوزهای برنامه را بررسی کن.'
+      'اسکنر فعال نشد؛ مجوز دوربین و اتصال اینترنت را بررسی کن.'
     );
   }
 }
 
-// اتصال دکمه‌ای که در index.html ساخته‌ای
 if ($('scanBarcodeBtn')) {
   $('scanBarcodeBtn').addEventListener(
     'click',
@@ -2263,7 +2294,6 @@ if ($('scanBarcodeBtn')) {
   );
 }
 
-// با بستن پنجره، دوربین نیز متوقف شود.
 if ($('closeModal')) {
   $('closeModal').addEventListener(
     'click',
