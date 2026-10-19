@@ -2127,208 +2127,38 @@ init().catch(e => {
    این بخش را به انتهای app.js اضافه کنید.
    ========================================================= */
 
-let yadakBarcodeScanner = null;
-let yadakBarcodeHandled = false;
-
-async function stopYadakBarcodeScanner() {
-  const scanner = yadakBarcodeScanner;
-  yadakBarcodeScanner = null;
-
-  if (!scanner) return;
-
-  try {
-    if (scanner.isScanning) await scanner.stop();
-  } catch (e) {}
-
-  try {
-    scanner.clear();
-  } catch (e) {}
-}
-
-// تبدیل اعداد فارسی و عربی به انگلیسی
-function barcodeEnglishDigits(value) {
-  return String(value || '')
-    .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
-    .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-    .trim();
-}
-
-// جست‌وجوی کالا با اولویت کد فنی
-async function searchScannedProduct(value) {
-  const code = barcodeEnglishDigits(value);
-  if (!code) return;
-
-  $('search').value = code;
-  await renderProducts(true);
-
-  const products = await all('products');
-
-  // تطبیق دقیق کد فنی، OEM یا بارکد
-  const exact = products.filter(p => {
-    const scanned = code.replace(/\s/g, '');
-    return [
-      p.code,
-      p.oem,
-      p.barcode
-    ].some(v =>
-      barcodeEnglishDigits(v).replace(/\s/g, '') === scanned
-    );
-  });
-
-  if (exact.length) {
-    $('search').value = code;
-    await renderProducts(true);
-    notify('کالا شناسایی شد: ' + exact[0].name);
-    return;
-  }
-
-  notify('کد خوانده شد؛ کالا در بانک اطلاعاتی پیدا نشد.');
-}
-
-// باز کردن دوربین
-async function startBarcodeScanner() {
-  if (yadakBarcodeScanner) return;
-
-  try {
-    if (!window.Html5Qrcode) {
-      notify('در حال بارگذاری بارکدخوان...');
-
-      await loadScript(
-        'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
-      );
-    }
-
-    showModal('اسکن بارکد قطعه', `
-      <p>بارکد خطی یا مربعی را مقابل دوربین قرار بده.</p>
-
-      <div id="yadakBarcodeReader"
-        style="width:100%;max-width:500px;margin:12px auto">
-      </div>
-
-      <hr>
-
-      <label>
-        ورود دستی کد فنی یا بارکد
-        <input id="manualPartCode"
-          dir="ltr"
-          placeholder="مثلاً 0940201299">
-      </label>
-
-      <div class="modal-actions">
-        <button id="manualPartSearch" class="primary">
-          جست‌وجو
-        </button>
-        <button id="cancelYadakScan" class="ghost">
-          انصراف
-        </button>
-      </div>
-    `);
-
-    $('cancelYadakScan').onclick = async () => {
-      await stopYadakBarcodeScanner();
-      closeModal();
-    };
-
-    $('manualPartSearch').onclick = async () => {
-      const value = $('manualPartCode').value;
-      await stopYadakBarcodeScanner();
-      closeModal();
-      await searchScannedProduct(value);
-    };
-
-    const scanner = new Html5Qrcode('yadakBarcodeReader');
-    yadakBarcodeScanner = scanner;
-    yadakBarcodeHandled = false;
-
-    await scanner.start(
-      { facingMode: 'environment' },
-      {
-        fps: 15,
-        qrbox: (width, height) => ({
-          width: Math.min(width * 0.9, 320),
-          height: Math.min(height * 0.65, 220)
-        }),
-        aspectRatio: 1.5,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.ITF
-        ]
-      },
-      async decodedText => {
-        if (yadakBarcodeHandled) return;
-        yadakBarcodeHandled = true;
-
-        const value = barcodeEnglishDigits(decodedText);
-
-        await stopYadakBarcodeScanner();
-        closeModal();
-
-        await searchScannedProduct(value);
-      },
-      () => {}
-    );
-
-  } catch (error) {
-    await stopYadakBarcodeScanner();
-
-    if ($('modalBackdrop')) closeModal();
-
-    console.error(error);
-
-    notify(
-      'اسکنر فعال نشد؛ مجوز دوربین و اتصال اینترنت را بررسی کن.'
-    );
-  }
-}
-
-if ($('scanBarcodeBtn')) {
-  $('scanBarcodeBtn').addEventListener(
-    'click',
-    startBarcodeScanner
-  );
-}
-
-if ($('closeModal')) {
-  $('closeModal').addEventListener(
-    'click',
-    stopYadakBarcodeScanner
-  );
-}
-
-if ($('modalBackdrop')) {
-  $('modalBackdrop').addEventListener('click', e => {
-    if (e.target === $('modalBackdrop')) {
-      stopYadakBarcodeScanner();
-    }
-  });
-}
 /* OCR خواندن نوشته روی جعبه و تایپ خودکار */
 
+let yadakTextStream = null;
+let yadakTextBusy = false;
+
+function stopYadakTextScanner() {
+  if (yadakTextStream) {
+    yadakTextStream.getTracks().forEach(track => track.stop());
+    yadakTextStream = null;
+  }
+  yadakTextBusy = false;
+}
+
 async function startTextScanner() {
+  if (yadakTextBusy) return;
+  yadakTextBusy = true;
+
   try {
     if (!window.Tesseract) {
       notify('در حال بارگذاری متن‌خوان...');
-
       await loadScript(
         'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'
       );
     }
 
     showModal('خواندن نوشته روی قطعه', `
-      <video id="textCamera"
-        autoplay playsinline
-        style="width:100%;border-radius:12px">
-      </video>
+      <video id="textCamera" autoplay playsinline
+        style="width:100%;border-radius:12px;background:#111"></video>
 
       <canvas id="textCanvas" hidden></canvas>
 
-      <p>دوربین را مقابل نوشته روی جعبه بگیر.</p>
+      <p>دوربین را مقابل نوشته قطعه بگیر و تصویر را ثابت نگه دار.</p>
 
       <button id="captureText" class="primary">
         خواندن و تایپ نوشته
@@ -2341,62 +2171,100 @@ async function startTextScanner() {
 
     const video = $('textCamera');
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
-      audio: false
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('دوربین در این محیط در دسترس نیست.');
+    }
+
+    yadakTextStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
     });
 
-    video.srcObject = stream;
+    video.srcObject = yadakTextStream;
+    await video.play();
 
     $('cancelTextScan').onclick = () => {
-      stream.getTracks().forEach(track => track.stop());
+      stopYadakTextScanner();
       closeModal();
     };
 
     $('captureText').onclick = async () => {
+      const button = $('captureText');
+
+      if (button.disabled) return;
+      button.disabled = true;
+
       try {
+        if (!video.videoWidth || !video.videoHeight) {
+          throw new Error('دوربین هنوز آماده نیست.');
+        }
+
         const canvas = $('textCanvas');
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
 
-        canvas.getContext('2d').drawImage(
-          video, 0, 0, canvas.width, canvas.height
-        );
+        const context = canvas.getContext('2d');
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        notify('در حال خواندن نوشته...');
+        notify('در حال تشخیص نوشته فارسی و انگلیسی...');
 
-        const result = await Tesseract.recognize(
+        const result = await window.Tesseract.recognize(
           canvas,
           'fas+eng',
-          {
-            logger: () => {}
-          }
+          { logger: () => {} }
         );
 
-        const text = String(result.data.text || '')
+        const text = String(result?.data?.text || '')
           .replace(/\s+/g, ' ')
           .trim();
 
         if (!text) {
-          notify('نوشته خوانده نشد؛ دوربین را نزدیک‌تر بگیر.');
+          notify('متنی تشخیص داده نشد؛ دوربین را نزدیک‌تر بگیر.');
           return;
         }
 
-        stream.getTracks().forEach(track => track.stop());
+        stopYadakTextScanner();
         closeModal();
 
         $('search').value = text;
         await renderProducts(true);
 
-        notify('متن خوانده و در جست‌وجو وارد شد.');
+        notify('متن وارد جست‌وجو شد: ' + text);
       } catch (error) {
         console.error(error);
-        notify('خواندن نوشته ناموفق بود.');
+        notify('خطا در خواندن متن: ' + (error.message || 'دوباره تلاش کن.'));
+      } finally {
+        if ($('captureText')) $('captureText').disabled = false;
       }
     };
 
   } catch (error) {
     console.error(error);
-    notify('دسترسی دوربین یا بارگذاری متن‌خوان ناموفق بود.');
+    stopYadakTextScanner();
+    if ($('modalBackdrop')) closeModal();
+
+    notify('دوربین یا متن‌خوان اجرا نشد: ' + (error.message || ''));
+  } finally {
+    yadakTextBusy = false;
   }
+}
+
+if ($('scanTextBtn')) {
+  $('scanTextBtn').addEventListener('click', startTextScanner);
+}
+
+if ($('closeModal')) {
+  $('closeModal').addEventListener('click', stopYadakTextScanner);
+}
+
+if ($('modalBackdrop')) {
+  $('modalBackdrop').addEventListener('click', event => {
+    if (event.target === $('modalBackdrop')) {
+      stopYadakTextScanner();
+    }
+  });
 }
