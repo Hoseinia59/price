@@ -148,6 +148,42 @@
   </style>
 </head>
 
+<script>
+(function () {
+  const searchBtn = document.getElementById('dashboardSearch');
+  const scanBtn = document.getElementById('dashboardScan');
+
+  if (searchBtn) {
+    searchBtn.addEventListener('click', function () {
+      const search = document.getElementById('search');
+      if (search) {
+        search.focus();
+        search.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    });
+  }
+
+  if (scanBtn) {
+    scanBtn.addEventListener('click', function () {
+      const scanner = document.getElementById('scanBarcodeBtn');
+      if (scanner) scanner.click();
+    });
+  }
+
+  document.querySelectorAll('[data-dashboard-tab]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const tabName = btn.dataset.dashboardTab;
+      const tab = document.querySelector(
+        '.tab[data-tab="' + tabName + '"]'
+      );
+      if (tab) tab.click();
+    });
+  });
+})();
+</script>
 <body>
 
   <header class="top">
