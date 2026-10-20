@@ -1538,8 +1538,6 @@ function sameProductIdentity(a, b) {
 }
 
 async function computeImportRows() {
-
-async function computeImportRows() {
   const {
     rawRows,
     headerRowIndex,
