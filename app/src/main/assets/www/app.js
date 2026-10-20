@@ -1538,6 +1538,8 @@ function sameProductIdentity(a, b) {
 }
 
 async function computeImportRows() {
+
+async function computeImportRows() {
   const {
     rawRows,
     headerRowIndex,
@@ -1548,14 +1550,56 @@ async function computeImportRows() {
 
   const existing = await all('products');
   const parsed = [];
+  const duplicateMap = new Map();
+  const existingMap = new Map();
+
+  const normKey = value => norm(String(value ?? '').trim());
+
+  // کلیدهای هویتی؛ کد، OEM و بارکد با هم اشتباه گرفته نمی‌شوند.
+  const identityKeys = p => {
+    const keys = [];
+
+    const code = normKey(p.code);
+    const oem = normKey(p.oem);
+    const barcode = normKey(p.barcode);
+
+    if (code) keys.push('c:' + code);
+    if (oem) keys.push('o:' + oem);
+    if (barcode) keys.push('b:' + barcode);
+
+    if (
+      !keys.length &&
+      normKey(p.name)
+    ) {
+      keys.push(
+        'n:' + normKey(p.name) + '|' + normKey(p.brand)
+      );
+    }
+
+    return keys;
+  };
+
+  const register = (store, item) => {
+    for (const key of identityKeys(item)) {
+      if (!store.has(key)) store.set(key, item);
+    }
+  };
+
+  // فقط اولین کالای موجود برای هر کلید حفظ می‌شود.
+  for (const product of existing) {
+    register(existingMap, product);
+  }
 
   const multiplier = priceMultiplierFromHeader(
     headers[map.price] || ''
   );
 
-  for (const row of rawRows.slice(headerRowIndex + 1)) {
-    const name = String(row[map.name] ?? '').trim();
+  const sourceRows = rawRows.slice(headerRowIndex + 1);
 
+  for (let i = 0; i < sourceRows.length; i++) {
+    const row = sourceRows[i];
+
+    const name = String(row[map.name] ?? '').trim();
     const rawPrice = num(row[map.price]);
     const price = Math.round(rawPrice * multiplier);
 
@@ -1608,41 +1652,80 @@ async function computeImportRows() {
         status: 'error',
         reason: 'نام یا قیمت نامعتبر',
         existingId: null,
+        _active: true,
         _valid: false
       });
+    } else {
+      const keys = identityKeys(candidate);
 
+      let duplicate = null;
+
+      for (const key of keys) {
+        const found = duplicateMap.get(key);
+
+        if (found && found._active) {
+          duplicate = found;
+          break;
+        }
+      }
+
+      // آخرین ردیف معتبر جایگزین تکراری قبلی می‌شود.
+      if (duplicate) {
+        duplicate._active = false;
+
+        for (const key of identityKeys(duplicate)) {
+          if (duplicateMap.get(key) === duplicate) {
+            duplicateMap.delete(key);
+          }
+        }
+      }
+
+      const entry = {
+        ...candidate,
+        _active: true,
+        _valid: true
+      };
+
+      parsed.push(entry);
+
+      for (const key of keys) {
+        duplicateMap.set(key, entry);
+      }
+    }
+
+    // هر 500 ردیف به رابط کاربری فرصت اجرا می‌دهیم.
+    if (i > 0 && i % 500 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
+
+  const activeRows = parsed.filter(r => r._active);
+  const result = [];
+
+  for (let i = 0; i < activeRows.length; i++) {
+    const r = activeRows[i];
+
+    if (!r._valid) {
+      const {
+        _valid,
+        _active,
+        ...clean
+      } = r;
+
+      result.push(clean);
       continue;
     }
 
-    /*
-      اگر همین کالا قبلاً در همین فایل دیده شده باشد،
-      ردیف قبلی حذف می‌شود و ردیف معتبر جدید جایگزین آن می‌شود.
-      بنابراین آخرین قیمت معتبر فایل برنده است.
-    */
+    let existingMatch = null;
 
-    const duplicateIndex = parsed.findIndex(r =>
-      r._valid && sameProductIdentity(r, candidate)
-    );
+    for (const key of identityKeys(r)) {
+      const found = existingMap.get(key);
 
-    if (duplicateIndex >= 0) {
-      parsed.splice(duplicateIndex, 1);
+      if (found) {
+        existingMatch = found;
+        break;
+      }
     }
-
-    parsed.push({
-      ...candidate,
-      _valid: true
-    });
-  }
-
-  const result = parsed.map(r => {
-    if (!r._valid) {
-      const { _valid, ...clean } = r;
-      return clean;
-    }
-
-    const existingMatch = existing.find(p =>
-      sameProductIdentity(p, r)
-    );
 
     const status = !existingMatch
       ? 'new'
@@ -1662,20 +1745,28 @@ async function computeImportRows() {
       reason = 'بدون تغییر قیمت';
     }
 
-    const { _valid, ...clean } = r;
+    const {
+      _valid,
+      _active,
+      ...clean
+    } = r;
 
-    return {
+    result.push({
       ...clean,
       status,
       reason,
       existingId: existingMatch ? existingMatch.id : null
-    };
-  });
+    });
+
+    if (i > 0 && i % 500 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    }
+  }
 
   pendingImport.rows = result;
   pendingImport.fileName = fileName;
 }
-
+ 
 function renderImportPreviewModal() {
   const rows = pendingImport.rows;
 
