@@ -573,3 +573,149 @@ footer{color:#7f94aa}
 flex-wrap: wrap;
 }
 }
+
+/* داشبورد اختصاصی یدک‌پرایس */
+.brand-showcase {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding: 20px 16px;
+  border: 1px solid #263b50;
+  border-radius: 20px;
+  color: #fff;
+  background:
+    radial-gradient(ellipse at 5% 0%, #25351d 0%, transparent 40%),
+    radial-gradient(ellipse at 100% 100%, #102c45 0%, transparent 45%),
+    linear-gradient(145deg, #02060b, #091827 65%, #02050a);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .25);
+}
+
+.showcase-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.showcase-logo {
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  height: 58px;
+  border: 1px solid #d9aa16;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #1c2a37, #050a10);
+  color: #ffca05;
+  font-size: 34px;
+  box-shadow: 0 0 22px rgba(255, 202, 5, .12);
+}
+
+.showcase-title {
+  font-size: 1.65rem;
+  font-weight: 900;
+  color: #fff;
+}
+
+.showcase-title span {
+  color: #ffca05;
+}
+
+.showcase-subtitle {
+  margin-top: 4px;
+  color: #d3dce7;
+  font-size: .82rem;
+}
+
+.showcase-description {
+  position: relative;
+  z-index: 1;
+  margin: 16px 0;
+  color: #d5dfeb;
+  font-size: .82rem;
+  line-height: 1.9;
+}
+
+.showcase-shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  position: relative;
+  z-index: 1;
+}
+
+.showcase-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #203447;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #0d1c2a, #07111c);
+  color: #fff;
+  text-align: right;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.showcase-action > span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #28230c;
+  color: #ffca05;
+  font-size: 24px;
+}
+
+.showcase-action b {
+  font-size: .84rem;
+}
+
+.showcase-action small {
+  color: #aab9c9;
+  font-size: .7rem;
+  line-height: 1.7;
+}
+
+.showcase-action:active {
+  border-color: #ffca05;
+  transform: scale(.98);
+}
+
+.showcase-corner {
+  position: absolute;
+  z-index: 0;
+  width: 80px;
+  height: 80px;
+  border: 9px solid #f5bd00;
+  opacity: .9;
+  pointer-events: none;
+}
+
+.showcase-corner-top {
+  top: -48px;
+  left: -45px;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  transform: rotate(12deg);
+}
+
+.showcase-corner-bottom {
+  right: -48px;
+  bottom: -52px;
+  border-left-color: transparent;
+  border-top-color: transparent;
+  transform: rotate(12deg);
+}
+
+@media (min-width: 600px) {
+  .showcase-shortcuts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+
