@@ -224,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const shade = document.getElementById('menuShade');
 
   function closeMenu() {
+   document.body.classList.add('home-view');
     menu.classList.remove('open');
     shade.classList.remove('open');
   }
@@ -240,6 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
     button.addEventListener('click', function () {
       const target = button.dataset.goto;
       closeMenu();
+      document.body.classList.remove('home-view');
 
       if (target === 'home') {
         window.scrollTo({ top: 0, behavior: 'smooth' });
