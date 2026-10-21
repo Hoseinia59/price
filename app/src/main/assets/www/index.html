@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 </script>
-<body>
+<body class="home-view">
 
   <header class="top">
     <div class="brand-area">
@@ -223,11 +223,10 @@ document.addEventListener('DOMContentLoaded', function () {
   const menu = document.getElementById('sideMenu');
   const shade = document.getElementById('menuShade');
 
-  function closeMenu() {
-   document.body.classList.add('home-view');
-    menu.classList.remove('open');
-    shade.classList.remove('open');
-  }
+ function closeMenu() {
+  menu.classList.remove('open');
+  shade.classList.remove('open');
+}
 
   document.getElementById('menuToggle').addEventListener('click', function () {
     menu.classList.add('open');
@@ -241,12 +240,14 @@ document.addEventListener('DOMContentLoaded', function () {
     button.addEventListener('click', function () {
       const target = button.dataset.goto;
       closeMenu();
-      document.body.classList.remove('home-view');
 
-      if (target === 'home') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
+  if (target === 'home') {
+  document.body.classList.add('home-view');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  return;
+}
+
+document.body.classList.remove('home-view');
 
       if (target === 'search' || target === 'scanBarcodeBtn' ||
           target === 'settingsBtn' || target === 'backupBtn') {
