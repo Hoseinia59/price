@@ -147,9 +147,8 @@
     }
   </style>
 </head>
-
 <script>
-(function () {
+document.addEventListener('DOMContentLoaded', function () {
   const searchBtn = document.getElementById('dashboardSearch');
   const scanBtn = document.getElementById('dashboardScan');
 
@@ -158,10 +157,7 @@
       const search = document.getElementById('search');
       if (search) {
         search.focus();
-        search.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
+        search.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     });
   }
@@ -175,14 +171,13 @@
 
   document.querySelectorAll('[data-dashboard-tab]').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      const tabName = btn.dataset.dashboardTab;
       const tab = document.querySelector(
-        '.tab[data-tab="' + tabName + '"]'
+        '.tab[data-tab="' + btn.dataset.dashboardTab + '"]'
       );
       if (tab) tab.click();
     });
   });
-})();
+});
 </script>
 <body>
 
