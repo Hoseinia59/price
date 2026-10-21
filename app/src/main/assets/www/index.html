@@ -195,7 +195,81 @@ document.addEventListener('DOMContentLoaded', function () {
       نصب برنامه
     </button>
   </header>
+  
+<!-- منوی کشویی یدک‌پرایس -->
+<button id="menuToggle" class="menu-toggle" type="button" aria-label="باز کردن منو">☰</button>
 
+<div id="menuShade" class="menu-shade"></div>
+
+<nav id="sideMenu" class="side-menu" aria-label="منوی اصلی">
+  <div class="menu-brand">
+    <button id="menuClose" type="button">✕</button>
+    <strong>یدک <span>پرایس</span></strong>
+  </div>
+  <button data-goto="home">⌂　صفحه اصلی</button>
+  <button data-goto="search">⌕　جست‌وجوی قطعه</button>
+  <button data-goto="scanBarcodeBtn">▥　اسکن بارکد</button>
+  <button data-goto="products">▦　فهرست کالاها</button>
+  <button data-goto="history">◷　تاریخچه قیمت</button>
+  <button data-goto="tools">▤　ورود Excel و PDF</button>
+  <button data-goto="rules">٪　قواعد سود</button>
+  <button data-goto="settingsBtn">⚙　تنظیمات</button>
+  <button data-goto="backupBtn">▣　پشتیبان‌گیری</button>
+  <div class="menu-support">☎　پشتیبانی یدک‌پرایس</div>
+</nav>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const menu = document.getElementById('sideMenu');
+  const shade = document.getElementById('menuShade');
+
+  function closeMenu() {
+    menu.classList.remove('open');
+    shade.classList.remove('open');
+  }
+
+  document.getElementById('menuToggle').addEventListener('click', function () {
+    menu.classList.add('open');
+    shade.classList.add('open');
+  });
+
+  document.getElementById('menuClose').addEventListener('click', closeMenu);
+  shade.addEventListener('click', closeMenu);
+
+  menu.querySelectorAll('[data-goto]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const target = button.dataset.goto;
+      closeMenu();
+
+      if (target === 'home') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+
+      if (target === 'search' || target === 'scanBarcodeBtn' ||
+          target === 'settingsBtn' || target === 'backupBtn') {
+        const el = document.getElementById(target);
+        if (el) {
+          el.click();
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        return;
+      }
+
+      const tab = document.querySelector('.tab[data-tab="' + target + '"]');
+      if (tab) {
+        tab.click();
+        const pane = document.getElementById(target);
+        if (pane) pane.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        const el = document.getElementById(target);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+});
+</script>
+  
   <main>
 
     <section class="search-panel card">
