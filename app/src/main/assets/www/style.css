@@ -837,6 +837,7 @@ body.home-view #clearSearch {
 }
 
 /* صفحه‌های داخلی: خودرو و داشبورد تبلیغاتی پنهان */
+body.home-view > .brand-showcase,
 body:not(.home-view) .car-hero,
 body:not(.home-view) .brand-showcase {
   display: none !important;
