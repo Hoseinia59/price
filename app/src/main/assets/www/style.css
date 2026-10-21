@@ -1005,3 +1005,35 @@ body:not(.home-view) .brand-showcase {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+/* تصویر تمام‌صفحه ماشین در صفحه خانه */
+body.home-view {
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #05070d !important;
+}
+
+body.home-view > main > .car-hero {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+}
+
+body.home-view .car-hero img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
