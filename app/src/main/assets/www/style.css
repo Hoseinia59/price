@@ -719,3 +719,131 @@ flex-wrap: wrap;
 }
 
 
+/* منوی کشویی */
+.menu-toggle {
+  position: fixed;
+  z-index: 1001;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: 14px;
+  width: 46px;
+  height: 46px;
+  border: 1px solid #e9b900;
+  border-radius: 12px;
+  background: #081727;
+  color: #ffc900;
+  font-size: 25px;
+  box-shadow: 0 0 18px #0008;
+}
+
+.side-menu {
+  position: fixed;
+  z-index: 1003;
+  top: 0;
+  right: 0;
+  width: min(310px, 85vw);
+  height: 100dvh;
+  padding: 22px 14px;
+  overflow-y: auto;
+  background: linear-gradient(160deg, #10263a, #030914 75%);
+  border-left: 2px solid #ffc400;
+  box-shadow: -15px 0 40px #0009;
+  transform: translateX(110%);
+  transition: transform .25s ease;
+}
+
+.side-menu.open { transform: translateX(0); }
+
+.menu-shade {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1002;
+  background: #000a;
+}
+
+.menu-shade.open { display: block; }
+
+.menu-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 8px 24px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #34485b;
+  color: #fff;
+  font-size: 23px;
+}
+
+.menu-brand span { color: #ffc400; }
+
+.menu-brand button {
+  color: #ffc400;
+  background: transparent;
+  border: 0;
+  font-size: 23px;
+}
+
+.side-menu > button:not(.menu-brand button) {
+  display: block;
+  width: 100%;
+  text-align: right;
+  padding: 14px 12px;
+  margin: 5px 0;
+  border: 1px solid #1b344a;
+  border-radius: 11px;
+  background: #0b1c2c;
+  color: #f4f7fc;
+  font-size: 14px;
+}
+
+.side-menu > button:active { background: #ffc400; color: #07111e; }
+
+.menu-support {
+  margin-top: 20px;
+  padding: 16px 10px;
+  border: 1px solid #ffc400;
+  border-radius: 12px;
+  color: #ffc400;
+  text-align: center;
+}
+
+/* جای کافی برای دکمه منو در بالای صفحه */
+.top { padding-right: 70px !important; }
+
+/* بخش تصویری خودرو */
+.car-hero {
+  position: relative;
+  overflow: hidden;
+  margin: 12px;
+  min-height: 230px;
+  border: 1px solid #30465b;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at center, #183047, #030914 72%);
+  display: grid;
+  place-items: center;
+}
+
+.car-hero svg {
+  display: block;
+  width: 100%;
+  max-width: 520px;
+  filter: drop-shadow(0 10px 18px #000);
+}
+
+.car-hero .lamp {
+  filter: drop-shadow(0 0 8px #e8f8ff)
+          drop-shadow(0 0 18px #7acbff);
+}
+
+.car-hero-title {
+  color: #ffc400;
+  font-weight: 900;
+  font-size: 24px;
+  text-align: center;
+  padding: 8px;
+}
+
+@media (max-width: 480px) {
+  .car-hero { min-height: 190px; }
+}
+
