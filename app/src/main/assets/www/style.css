@@ -847,3 +847,40 @@ flex-wrap: wrap;
   .car-hero { min-height: 190px; }
 }
 
+/* فقط ماشین و جست‌وجو در صفحه اصلی */
+body.home-view > header.top,
+body.home-view > main > section:not(.car-hero):not(.search-panel),
+body.home-view > footer,
+body.home-view .brand-showcase {
+  display: none !important;
+}
+
+body.home-view > main {
+  padding-top: 0 !important;
+}
+
+body.home-view .car-hero {
+  min-height: 48vh;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+body.home-view .search-panel {
+  margin: 14px;
+}
+
+body.home-view .filter-line,
+body.home-view .quick-stats {
+  display: none !important;
+}
+
+body:not(.home-view) .car-hero,
+body:not(.home-view) .brand-showcase {
+  display: none !important;
+}
+
+body.home-view #menuToggle {
+  display: block;
+}
+
