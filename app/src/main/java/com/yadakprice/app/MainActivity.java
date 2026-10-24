@@ -1,4 +1,3 @@
-
 package com.yadakprice.app;
 
 import android.Manifest;
@@ -7,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -23,21 +23,72 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.webkit.WebViewAssetLoader;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
 
-    private static final String VIRTUAL_DOMAIN =
-            "appassets.androidplatform.net";
-
+    private static final String VIRTUAL_DOMAIN = "appassets.androidplatform.net";
     private static final int WEB_PERMISSION_REQUEST = 1001;
     private static final int FILE_CHOOSER_REQUEST = 1002;
 
     private ValueCallback<Uri[]> fileChooserCallback;
     private PermissionRequest pendingWebPermissionRequest;
+
+    private final ExecutorService fileExecutor = Executors.newSingleThreadExecutor();
+    private final NativeFileBridge nativeFileBridge = new NativeFileBridge();
+
+    private final class NativeFileBridge {
+        private volatile byte[] pendingBytes;
+        private volatile String pendingName = "";
+
+        synchronized void setPendingFile(String name, byte[] bytes) {
+            pendingName = (name == null || name.trim().isEmpty()) ? "import.xlsx" : name;
+            pendingBytes = bytes;
+        }
+
+        @android.webkit.JavascriptInterface
+        public boolean hasPendingFile() {
+            return pendingBytes != null && pendingBytes.length > 0;
+        }
+
+        @android.webkit.JavascriptInterface
+        public String getPendingFileName() {
+            return pendingName;
+        }
+
+        @android.webkit.JavascriptInterface
+        public int getPendingFileSize() {
+            return pendingBytes == null ? 0 : pendingBytes.length;
+        }
+
+        @android.webkit.JavascriptInterface
+        public String readPendingFileChunk(int offset, int length) {
+            byte[] bytes = pendingBytes;
+            if (bytes == null || offset < 0 || offset >= bytes.length || length <= 0) {
+                return "";
+            }
+
+            int safeLength = Math.min(length, 64 * 1024);
+            int end = Math.min(bytes.length, offset + safeLength);
+            byte[] slice = Arrays.copyOfRange(bytes, offset, end);
+
+            return android.util.Base64.encodeToString(slice, android.util.Base64.NO_WRAP);
+        }
+
+        @android.webkit.JavascriptInterface
+        public synchronized void clearPendingFile() {
+            pendingBytes = null;
+            pendingName = "";
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,19 +100,23 @@ public class MainActivity extends AppCompatActivity {
         WebViewAssetLoader assetLoader =
                 new WebViewAssetLoader.Builder()
                         .setDomain(VIRTUAL_DOMAIN)
-                        .addPathHandler(
-                                "/assets/",
-                                new WebViewAssetLoader.AssetsPathHandler(this)
-                        )
+                        .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(this))
                         .build();
 
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setAllowFileAccess(false);
+        settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
+        settings.setSupportZoom(false);
+        settings.setBuiltInZoomControls(false);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+        settings.setAllowUniversalAccessFromFileURLs(true);
+        settings.setAllowFileAccessFromFileURLs(true);
+
+        webView.addJavascriptInterface(nativeFileBridge, "AndroidFileBridge");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -69,8 +124,21 @@ public class MainActivity extends AppCompatActivity {
                     WebView view,
                     WebResourceRequest request
             ) {
-                return assetLoader.shouldInterceptRequest(
-                        request.getUrl()
+                return assetLoader.shouldInterceptRequest(request.getUrl());
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return false;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+
+                view.evaluateJavascript(
+                        "if (window.__checkNativeSelectedFile) { window.__checkNativeSelectedFile(); }",
+                        null
                 );
             }
         });
@@ -78,16 +146,12 @@ public class MainActivity extends AppCompatActivity {
         webView.setWebChromeClient(new WebChromeClient() {
 
             @Override
-            public void onPermissionRequest(
-                    @NonNull PermissionRequest request
-            ) {
+            public void onPermissionRequest(@NonNull PermissionRequest request) {
                 runOnUiThread(() -> handleWebPermissionRequest(request));
             }
 
             @Override
-            public void onPermissionRequestCanceled(
-                    @NonNull PermissionRequest request
-            ) {
+            public void onPermissionRequestCanceled(@NonNull PermissionRequest request) {
                 if (pendingWebPermissionRequest == request) {
                     pendingWebPermissionRequest = null;
                 }
@@ -107,10 +171,24 @@ public class MainActivity extends AppCompatActivity {
 
                 try {
                     Intent intent = params.createIntent();
-                    startActivityForResult(
-                            intent,
-                            FILE_CHOOSER_REQUEST
-                    );
+
+                    // Support Excel + all document types
+                    if (intent.getType() == null || intent.getType().isEmpty()) {
+                        intent.setType("*/*");
+                    }
+
+                    String[] mimeTypes = new String[] {
+                            "application/vnd.ms-excel",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            "text/csv",
+                            "text/plain",
+                            "application/pdf"
+                    };
+
+                    intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+                    intent.addCategory(Intent.CATEGORY_OPENABLE);
+
+                    startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     return true;
 
                 } catch (Exception e) {
@@ -128,15 +206,28 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        webView.loadUrl(
-                "https://" + VIRTUAL_DOMAIN
-                        + "/assets/www/index.html"
-        );
+        if (savedInstanceState != null) {
+            if (webView.restoreState(savedInstanceState) == null) {
+                loadHomePage();
+            }
+        } else {
+            loadHomePage();
+        }
     }
 
-    private void handleWebPermissionRequest(
-            @NonNull PermissionRequest request
-    ) {
+    private void loadHomePage() {
+        webView.loadUrl("https://" + VIRTUAL_DOMAIN + "/assets/www/index.html");
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        if (webView != null) {
+            webView.saveState(outState);
+        }
+        super.onSaveInstanceState(outState);
+    }
+
+    private void handleWebPermissionRequest(@NonNull PermissionRequest request) {
         Uri origin = request.getOrigin();
 
         if (!"https".equals(origin.getScheme())
@@ -162,18 +253,14 @@ public class MainActivity extends AppCompatActivity {
         List<String> missingPermissions = new ArrayList<>();
 
         if (needsCamera
-                && ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.CAMERA
-                ) != PackageManager.PERMISSION_GRANTED) {
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
             missingPermissions.add(Manifest.permission.CAMERA);
         }
 
         if (needsMicrophone
-                && ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.RECORD_AUDIO
-                ) != PackageManager.PERMISSION_GRANTED) {
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                != PackageManager.PERMISSION_GRANTED) {
             missingPermissions.add(Manifest.permission.RECORD_AUDIO);
         }
 
@@ -207,19 +294,13 @@ public class MainActivity extends AppCompatActivity {
 
         for (String resource : request.getResources()) {
             if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource)
-                    && ContextCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_GRANTED) {
-
+                    && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                    == PackageManager.PERMISSION_GRANTED) {
                 grantedResources.add(resource);
 
             } else if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource)
-                    && ContextCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.RECORD_AUDIO
-                    ) == PackageManager.PERMISSION_GRANTED) {
-
+                    && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED) {
                 grantedResources.add(resource);
             }
         }
@@ -232,38 +313,79 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(
-            int requestCode,
-            int resultCode,
-            Intent data
-    ) {
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
-        if (requestCode == FILE_CHOOSER_REQUEST
-                && fileChooserCallback != null) {
-
-            Uri[] results = null;
+        if (requestCode == FILE_CHOOSER_REQUEST) {
+            Uri selectedUri = null;
 
             if (resultCode == Activity.RESULT_OK && data != null) {
-                Uri uri = data.getData();
+                selectedUri = data.getData();
 
-                if (uri != null) {
-                    results = new Uri[]{uri};
+                if (selectedUri == null && data.getClipData() != null
+                        && data.getClipData().getItemCount() > 0) {
+                    selectedUri = data.getClipData().getItemAt(0).getUri();
+                }
+            }
 
-                } else if (data.getClipData() != null) {
-                    int count = data.getClipData().getItemCount();
-                    results = new Uri[count];
+            if (fileChooserCallback != null) {
+                Uri[] results = selectedUri == null ? null : new Uri[]{selectedUri};
+                fileChooserCallback.onReceiveValue(results);
+                fileChooserCallback = null;
+            } else if (selectedUri != null) {
+                fileExecutor.execute(() -> recoverSelectedFile(selectedUri));
+            }
+        }
+    }
 
-                    for (int i = 0; i < count; i++) {
-                        results[i] = data.getClipData()
-                                .getItemAt(i)
-                                .getUri();
+    private void recoverSelectedFile(Uri uri) {
+        try (InputStream input = getContentResolver().openInputStream(uri);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+
+            if (input == null) {
+                return;
+            }
+
+            byte[] buffer = new byte[32 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+
+            String name = "import.xlsx";
+
+            try (android.database.Cursor cursor = getContentResolver().query(
+                    uri,
+                    new String[]{OpenableColumns.DISPLAY_NAME},
+                    null,
+                    null,
+                    null
+            )) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (column >= 0 && cursor.getString(column) != null) {
+                        name = cursor.getString(column);
                     }
                 }
             }
 
-            fileChooserCallback.onReceiveValue(results);
-            fileChooserCallback = null;
+            nativeFileBridge.setPendingFile(name, output.toByteArray());
+
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.evaluateJavascript(
+                            "if (window.__checkNativeSelectedFile) { window.__checkNativeSelectedFile(); }",
+                            null
+                    );
+                }
+            });
+
+        } catch (Exception e) {
+            runOnUiThread(() -> Toast.makeText(
+                    MainActivity.this,
+                    "خواندن فایل انتخاب‌شده ناموفق بود.",
+                    Toast.LENGTH_LONG
+            ).show());
         }
     }
 
@@ -284,6 +406,8 @@ public class MainActivity extends AppCompatActivity {
             webView = null;
         }
 
+        fileExecutor.shutdownNow();
+
         super.onDestroy();
     }
 
@@ -302,20 +426,15 @@ public class MainActivity extends AppCompatActivity {
             @NonNull String[] permissions,
             @NonNull int[] grantResults
     ) {
-        super.onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                grantResults
-        );
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
 
         if (requestCode == WEB_PERMISSION_REQUEST) {
             finishWebPermissionRequest();
 
-            boolean cameraGranted =
-                    ContextCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.CAMERA
-                    ) == PackageManager.PERMISSION_GRANTED;
+            boolean cameraGranted = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED;
 
             if (!cameraGranted) {
                 Toast.makeText(
